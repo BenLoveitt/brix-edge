@@ -1,0 +1,6 @@
+{
+  "_comment": "Screen token → the folder (or file) under BRIX_EDGE_ROOT that holds its current drawing. The token is the screen's id in Brix, which is the only thing Brix stores. Nobody outside this file knows which part a station builds.",
+  "scr_9f2c1e0d4b7a4c1e8f2a": "parts/44-1187",
+  "scr_3a1b5c7d9e2f4a6b8c0d": "parts/44-1190",
+  "scr_canary000000000000000": "canary"
+}
