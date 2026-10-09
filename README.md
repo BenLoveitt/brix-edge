@@ -66,7 +66,7 @@ See `stations.example.json`.
 
 1. The token must be in the map (or, in identity mode, must be a folder name under ROOT). Anything else is `unknown` and counted.
 2. The mapped path must stay inside ROOT. `..`, absolute paths and symlinks that lead out are refused and counted. They are never served.
-3. If the path is a file, that is the drawing. If it is a folder, `released.pdf` wins when present; otherwise the newest `*.pdf` by modification time.
+3. If the path is a `.pdf` file (map mode only), that is the drawing. If it is a folder, `released.pdf` wins when present; otherwise the newest `*.pdf` by modification time.
 4. A folder with no PDF is **nothing released**: a 404 with the header `x-brix-edge-reason: nothing-released`, counted. The screen shows a card instead of a drawing.
 
 ## What it sends

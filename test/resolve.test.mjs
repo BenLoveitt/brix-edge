@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
+import { writeFileSync } from "node:fs";
 import { resolveToken } from "../src/resolve.mjs";
-import { makeRoot, configFor } from "./helpers.mjs";
+import { makeRoot, configFor, pdfBytes } from "./helpers.mjs";
 
 test("released.pdf wins over any other file in the station's folder", async () => {
   const { root, map } = makeRoot();
@@ -64,4 +65,26 @@ test("a drawing over the size cap is refused as too-large, with the size", async
   const r = await resolveToken(cfg, "scr_a");
   assert.equal(r.kind, "too-large");
   assert.ok(r.size > 100);
+});
+
+test("identity mode serves only a station FOLDER: a stray file directly under root is unknown, never served", async () => {
+  const { root } = makeRoot();
+  writeFileSync(join(root, "hr-notes.txt"), "NOT A DRAWING");
+  writeFileSync(join(root, "loose.pdf"), pdfBytes("LOOSE"));
+  const cfg = configFor(root, null);
+  assert.equal((await resolveToken(cfg, "hr-notes.txt")).kind, "unknown");
+  assert.equal((await resolveToken(cfg, "stations.json")).kind, "unknown");
+  assert.equal((await resolveToken(cfg, "loose.pdf")).kind, "unknown");
+  // Positive control: a station folder still resolves.
+  assert.equal((await resolveToken(cfg, "canary")).kind, "file");
+});
+
+test("a mapped file that is not a PDF is never served", async () => {
+  const { root } = makeRoot();
+  writeFileSync(join(root, "notes.txt"), "NOT A DRAWING");
+  const map = join(root, "m.json");
+  writeFileSync(map, JSON.stringify({ scr_txt: "notes.txt", scr_file: "parts/44-1300.pdf" }));
+  const cfg = configFor(root, map);
+  assert.equal((await resolveToken(cfg, "scr_txt")).kind, "unknown");
+  assert.equal((await resolveToken(cfg, "scr_file")).kind, "file");
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, utimesSync } from "node:fs";
+import { writeFileSync, utimesSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { makeRoot, configFor, boot, pdfBytes } from "./helpers.mjs";
 
@@ -141,4 +141,16 @@ test("the access log carries token, status, bytes and the file name — the cust
     assert.ok(hit.remote);
     assert.ok(hit.ts);
   });
+});
+
+test("identity mode: a stray top-level file is never served over HTTP", async () => {
+  const { root } = makeRoot();
+  writeFileSync(join(root, "hr-notes.txt"), "DUMMY-NON-DRAWING-CONTENT");
+  const s = await boot(configFor(root, null));
+  try {
+    const r = await fetch(`${s.base}/drawings/hr-notes.txt`);
+    assert.equal(r.status, 404);
+    assert.ok(!(await r.text()).includes("DUMMY"));
+    assert.equal((await fetch(`${s.base}/drawings/canary`)).status, 200);
+  } finally { await s.close(); }
 });

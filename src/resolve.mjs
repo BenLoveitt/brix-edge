@@ -10,7 +10,7 @@
  *   2. The mapped path must stay inside the root. `..`, absolute paths and
  *      symlinks that escape are refused as `outside` — never served, never
  *      revealed.
- *   3. If the target is a file, that is the document. If it is a folder,
+ *   3. If the target is a PDF file (map mode only), that is the document. If it is a folder,
  *      RELEASED_NAME wins when present (the "replace the exact file"
  *      workflow), otherwise the newest `*.pdf` by modification time.
  *   4. A folder with no PDF is `nothing-released` — a real state on a shop
@@ -58,6 +58,11 @@ export async function resolveToken(cfg, token) {
   const st = await fs.stat(target);
   let file;
   if (st.isFile()) {
+    // Identity mode names station FOLDERS only: a token that happens to be the
+    // name of a loose file at the top of the share (notes, the map itself) is
+    // unknown, not served. And whatever the mode, only a PDF is a drawing —
+    // the response is labelled application/pdf and nothing else is promised.
+    if (!cfg.map || extname(target).toLowerCase() !== ".pdf") return { kind: "unknown" };
     file = target;
   } else if (st.isDirectory()) {
     file = await pickInFolder(target, cfg.releasedName);
