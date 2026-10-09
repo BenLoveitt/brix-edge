@@ -166,6 +166,26 @@ test("an internal error in a request is a 500, not a dead server", async () => {
   } finally { await s.close(); }
 });
 
+test("identity mode: a case or trailing-dot variant of a canary token is refused and counted as the canary", async () => {
+  const { root } = makeRoot();
+  const cfg = configFor(root, null, { BRIX_EDGE_CANARY_TOKENS: "canary" });
+  const s = await boot(cfg);
+  try {
+    for (const t of ["CANARY", "Canary", "canary."]) {
+      const r = await fetch(`${s.base}/drawings/${t}`);
+      assert.equal(r.status, 404, `${t} must not be served`);
+      assert.ok(!(await r.text()).includes("CANARY"));
+    }
+    assert.equal(s.metrics.canary, 3);
+    assert.equal((await fetch(`${s.base}/drawings/canary`)).status, 404);
+    assert.equal(s.metrics.canary, 4);
+    // Positive control: a real station folder still serves.
+    mkdirSync(join(root, "station1"));
+    writeFileSync(join(root, "station1", "released.pdf"), pdfBytes("S1"));
+    assert.equal((await fetch(`${s.base}/drawings/station1`)).status, 200);
+  } finally { await s.close(); }
+});
+
 test("identity mode: a stray top-level file is never served over HTTP", async () => {
   const { root } = makeRoot();
   writeFileSync(join(root, "hr-notes.txt"), "DUMMY-NON-DRAWING-CONTENT");

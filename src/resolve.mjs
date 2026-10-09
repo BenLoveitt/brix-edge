@@ -54,6 +54,15 @@ export async function resolveToken(cfg, token) {
     try { await fs.lstat(target); } catch { exists = false; }
     return exists ? { kind: "outside" } : { kind: "nothing-released" };
   }
+  // Identity mode: the token must be the folder's name EXACTLY. A
+  // case-insensitive filesystem (APFS, NTFS) would otherwise open `canary/`
+  // for `CANARY` or `canary.` — a name no screen was given, which the
+  // server's exact-match canary check never sees.
+  if (!cfg.map) {
+    let names;
+    try { names = await fs.readdir(cfg.root); } catch { return { kind: "nothing-released" }; }
+    if (!names.includes(token)) return { kind: "unknown" };
+  }
 
   const st = await fs.stat(target);
   let file;

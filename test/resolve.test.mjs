@@ -88,3 +88,14 @@ test("a mapped file that is not a PDF is never served", async () => {
   assert.equal((await resolveToken(cfg, "scr_txt")).kind, "unknown");
   assert.equal((await resolveToken(cfg, "scr_file")).kind, "file");
 });
+
+test("identity mode matches the folder name EXACTLY, whatever the filesystem folds", async () => {
+  const { root } = makeRoot();
+  const cfg = configFor(root, null);
+  // On a case-insensitive filesystem (macOS APFS, Windows NTFS) these would
+  // otherwise open canary/; on a case-sensitive one they never existed.
+  for (const t of ["CANARY", "Canary", "canary."]) {
+    assert.notEqual((await resolveToken(cfg, t)).kind, "file", `${t} must not resolve to canary/`);
+  }
+  assert.equal((await resolveToken(cfg, "canary")).kind, "file");
+});

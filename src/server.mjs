@@ -57,7 +57,13 @@ function notModifiedSince(header, mtimeMs) {
   return Math.floor(mtimeMs / 1000) <= Math.floor(since / 1000);
 }
 
+/** The canary check's view of a token: case folded and trailing dots
+ *  stripped, the two ways a Windows or macOS filesystem would still open the
+ *  canary's folder for a name that is not byte-for-byte the canary token. */
+const canaryKey = (t) => t.toLowerCase().replace(/\.+$/, "");
+
 export function createEdgeServer(cfg, { log = defaultLog, metrics = new Metrics() } = {}) {
+  const canaryKeys = new Set([...cfg.canary].map(canaryKey));
   // An async listener that rejects is an unhandled rejection, and Node exits
   // on those: one malformed request would stop the service for every station.
   // Every error ends as a 500 for that one request instead.
@@ -115,7 +121,7 @@ export function createEdgeServer(cfg, { log = defaultLog, metrics = new Metrics(
     // The canary: a token that exists in the map so that a request for it
     // resolves like any other — but that no screen was ever given. Any
     // request is an alarm, whoever made it.
-    if (cfg.canary.has(token)) {
+    if (canaryKeys.has(canaryKey(token))) {
       metrics.canary++;
       metrics.request("drawing", 404);
       res.writeHead(404, { "content-length": "0", "cache-control": "no-store" }); res.end();
