@@ -164,6 +164,20 @@ It "a canary hit is an alarm whatever the status — a 200 would be worse, not q
   Expect $hits.Count 1
   Expect $hits[0].kind "CANARY"
 }
+It "classifies by the token whatever follows it — a file name after the token does not dodge the alarm" {
+  # IIS serves and logs /drawings/<token>/released.pdf (StaticFile on path=*,
+  # .pdf allowed), so a prober who appends the file name must still be caught.
+  $recs = ConvertFrom-W3CLog -Lines @(
+    '#Fields: date time c-ip cs-uri-stem sc-status',
+    '2026-09-08 10:00:00 10.0.0.9 /drawings/scr_canary/released.pdf 404',
+    '2026-09-08 10:00:01 10.0.0.9 /drawings/scr_guess/x.pdf 404',
+    '2026-09-08 10:00:02 10.50.8.22 /drawings/scr_a/released.pdf 200'
+  )
+  $hits = Find-BrixEdgeAlarms -Records $recs -KnownTokens @("scr_a", "scr_canary") -CanaryTokens @("scr_canary")
+  Expect $hits.Count 2 "the canary and the unknown token, not the real station"
+  Expect (@($hits | Where-Object { $_.kind -eq "CANARY" -and $_.token -eq "scr_canary" }).Count) 1
+  Expect (@($hits | Where-Object { $_.kind -eq "unknown-token" -and $_.token -eq "scr_guess" }).Count) 1
+}
 It "ignores /healthz, /metrics and anything that is not a drawing request" {
   $recs = ConvertFrom-W3CLog -Lines @(
     '#Fields: date time c-ip cs-uri-stem sc-status',

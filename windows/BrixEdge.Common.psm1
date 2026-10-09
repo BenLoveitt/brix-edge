@@ -190,7 +190,10 @@ function Find-BrixEdgeAlarms {
   $hits = New-Object System.Collections.Generic.List[object]
   foreach ($r in $Records) {
     $uri = $r.'cs-uri-stem'
-    if (-not $uri -or $uri -notmatch '^/drawings/([^/]+)/?$') { continue }
+    # Classify on the FIRST segment, whatever follows it: IIS serves and logs
+    # /drawings/<token>/released.pdf too, and a bare-folder-only pattern let a
+    # prober append a file name to dodge both the canary and unknown-token alarm.
+    if (-not $uri -or $uri -notmatch '^/drawings/([^/]+)(?:/.*)?$') { continue }
     $token = $Matches[1]
     $kind = if ($canary.ContainsKey($token)) { "CANARY" } elseif (-not $known.ContainsKey($token)) { "unknown-token" } else { $null }
     if (-not $kind) { continue }
