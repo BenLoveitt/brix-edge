@@ -143,6 +143,29 @@ test("the access log carries token, status, bytes and the file name — the cust
   });
 });
 
+test("a malformed percent-escape is a counted 404, and the server keeps serving", async () => {
+  await withServer(async ({ base, metrics }) => {
+    const bad = await fetch(`${base}/drawings/%E0%A4%A`);
+    assert.equal(bad.status, 404);
+    assert.equal(metrics.unknownToken, 1);
+    assert.equal((await fetch(`${base}/healthz`)).status, 200);
+    assert.equal((await fetch(`${base}/drawings/scr_a`)).status, 200);
+  });
+});
+
+test("an internal error in a request is a 500, not a dead server", async () => {
+  const { root, map } = makeRoot();
+  const cfg = configFor(root, map);
+  // A broken cfg makes resolveToken reject, standing in for any I/O fault
+  // (a file removed between stat and read, a share that drops).
+  const s = await boot({ ...cfg, map: { get() { throw new Error("boom"); }, size: 1 } });
+  try {
+    const r = await fetch(`${s.base}/drawings/scr_a`);
+    assert.equal(r.status, 500);
+    assert.equal((await fetch(`${s.base}/healthz`)).status, 200);
+  } finally { await s.close(); }
+});
+
 test("identity mode: a stray top-level file is never served over HTTP", async () => {
   const { root } = makeRoot();
   writeFileSync(join(root, "hr-notes.txt"), "DUMMY-NON-DRAWING-CONTENT");

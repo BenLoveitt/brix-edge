@@ -58,7 +58,20 @@ function notModifiedSince(header, mtimeMs) {
 }
 
 export function createEdgeServer(cfg, { log = defaultLog, metrics = new Metrics() } = {}) {
-  const server = createServer(async (req, res) => {
+  // An async listener that rejects is an unhandled rejection, and Node exits
+  // on those: one malformed request would stop the service for every station.
+  // Every error ends as a 500 for that one request instead.
+  const server = createServer((req, res) => {
+    handle(req, res).catch((err) => {
+      try {
+        if (!res.headersSent) { res.writeHead(500, { "content-length": "0", "cache-control": "no-store" }); res.end(); }
+        else res.destroy();
+      } catch { /* gone */ }
+      metrics.request("other", 500);
+      log({ ts: new Date().toISOString(), remote: req.socket.remoteAddress ?? "", method: req.method, path: req.url, status: 500, reason: "internal", error: String(err?.message ?? err) });
+    });
+  });
+  async function handle(req, res) {
     const t0 = Date.now();
     const url = new URL(req.url ?? "/", "http://edge");
     const remote = req.socket.remoteAddress ?? "";
@@ -90,7 +103,14 @@ export function createEdgeServer(cfg, { log = defaultLog, metrics = new Metrics(
 
     const m = /^\/drawings\/([^/]+)\/?$/.exec(url.pathname);
     if (!m) return json(404, { error: "not_found" }, "other");
-    const token = decodeURIComponent(m[1]);
+    let token;
+    try { token = decodeURIComponent(m[1]); }
+    catch {
+      // A malformed escape can name no station: it is an unknown token.
+      metrics.unknownToken++; metrics.request("drawing", 404);
+      res.writeHead(404, { "content-length": "0", "cache-control": "no-store" }); res.end();
+      done(404, { reason: "bad_encoding" }); return;
+    }
 
     // The canary: a token that exists in the map so that a request for it
     // resolves like any other — but that no screen was ever given. Any
@@ -145,7 +165,7 @@ export function createEdgeServer(cfg, { log = defaultLog, metrics = new Metrics(
     stream.on("error", () => { try { res.destroy(); } catch { /* gone */ } done(500, { token, file: r.name, reason: "read_error" }); });
     stream.on("end", () => { metrics.servedDrawing(token, r.size); done(200, { token, file: r.name, etag, bytes: r.size }); });
     stream.pipe(res);
-  });
+  }
   server.metrics = metrics;
   return server;
 }

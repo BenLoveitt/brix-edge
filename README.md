@@ -31,7 +31,7 @@ When you replace the file, every screen picks up the new copy within a minute an
 
 ```bash
 docker build -t brix-edge:0.1.0 .
-docker run -d --name brix-edge \
+docker run -d --name brix-edge --restart unless-stopped \
   -p 8787:8787 \
   -v /srv/drawings:/data/drawings:ro \
   -v /srv/stations.json:/data/stations.json:ro \
