@@ -127,7 +127,7 @@ The server accepts these `Host` values: an IP address, `localhost`, a name that 
 
 **Build it yourself.** We do not publish an image, and you do not need one. Build from a tag you have read. The `Dockerfile` pins the base image by digest, and the build has no install step because there are no dependencies. What you read is what runs.
 
-To compare your build with ours, run `scripts/reproduce.sh` at the tag. It prints the image digest. Each GitHub release states the digest that the release workflow got at that tag, with a signed attestation. The release also has the source archive, a CycloneDX SBOM (no dependencies), `SHA256SUMS` and an attestation for each file. Check one with `gh attestation verify <file> --repo BenLoveitt/brix-edge`. SECURITY.md has the details.
+To compare your build with ours, run `scripts/reproduce.sh` at the tag. It prints the image digest. CI builds each commit twice from scratch and requires the same digest; a build on a different machine has not been compared yet. Each GitHub release states the digest that the release workflow got at that tag, with a signed attestation. The release also has the source archive, a CycloneDX SBOM (no dependencies), `SHA256SUMS` and an attestation for each file. Check one with `gh attestation verify <file> --repo BenLoveitt/brix-edge`. SECURITY.md has the details.
 
 ## Microsoft shop? Run it on IIS, with nothing of ours on your server
 

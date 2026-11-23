@@ -73,7 +73,7 @@ scripts/reproduce.sh                          # needs Docker with buildx
 |---|---|
 | `test/image.test.mjs` | The `Dockerfile` has one `FROM`, pinned by digest. It has no `RUN` and no `ADD`, and it copies only `package.json` and `src/`. It runs as a numeric non-root user (65532). `ENTRYPOINT`, `CMD` and `HEALTHCHECK` are exec form, so the image needs no shell. The build context is an allowlist. |
 | `test/image.test.mjs`: "package.json has no dependencies of any kind, and the lockfile agrees" | Zero dependencies, also checked by the `No dependencies` step in CI. |
-| `scripts/reproduce.sh` (CI job `image` builds twice and compares) | The same commit gives the same image digest (linux/amd64, BuildKit, timestamps set to the commit time). |
+| `scripts/reproduce.sh` (CI job `image` builds twice and compares) | Two clean builds of one commit give the same image digest (linux/amd64, BuildKit, timestamps set to the commit time). CI checks this on GitHub's Ubuntu runner on each push. We have not compared builds across different machines yet. If your digest differs from a release's, open an issue with your Docker and BuildKit versions. |
 
 ### A release is what CI built from the tag
 
