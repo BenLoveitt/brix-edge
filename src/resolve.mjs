@@ -23,7 +23,9 @@ import { TOKEN_SHAPE } from "./config.mjs";
 
 /** Is the already-resolved `real` path inside `root`? */
 function realInside(root, real) {
-  const rootReal = realpathSync(root);
+  // realpathSync.native, like fs.realpath: the JS realpathSync does not expand Windows
+  // 8.3 short names (C:\Users\RUNNER~1), so the two would never agree there.
+  const rootReal = realpathSync.native(root);
   return real === rootReal || real.startsWith(rootReal + sep);
 }
 

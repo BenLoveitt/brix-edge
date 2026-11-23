@@ -1,4 +1,4 @@
-<#
+﻿<#
   The parts of the IIS kit that are pure logic, in one module, so they can be
   TESTED without an IIS host — which is the difference between "the script was
   written" and "the script works". Test-BrixEdge.Common.ps1 runs these on any

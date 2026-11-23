@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Unit tests for the IIS kit's pure logic. Runs anywhere PowerShell 7 runs —
   including a Mac — so the parts that do not need IIS are actually proven.

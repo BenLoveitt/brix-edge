@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { basename, join } from "node:path";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, symlinkSync } from "node:fs";
 import { resolveToken } from "../src/resolve.mjs";
 import { makeRoot, configFor, pdfBytes } from "./helpers.mjs";
 
@@ -98,4 +98,14 @@ test("identity mode matches the folder name EXACTLY, whatever the filesystem fol
     assert.notEqual((await resolveToken(cfg, t)).kind, "file", `${t} must not resolve to canary/`);
   }
   assert.equal((await resolveToken(cfg, "canary")).kind, "file");
+});
+
+test("a root given by another name for the same folder (a symlink; on Windows an 8.3 short name) still serves", async (t) => {
+  const { root, map } = makeRoot();
+  const alias = `${root}-alias`;
+  try { symlinkSync(root, alias, "junction"); } catch { t.skip("no symlinks here"); return; }
+  const cfg = configFor(alias, map);
+  const r = await resolveToken(cfg, "scr_a");
+  assert.equal(r.kind, "file");
+  assert.equal((await resolveToken(cfg, "scr_dotdot")).kind, "outside");
 });

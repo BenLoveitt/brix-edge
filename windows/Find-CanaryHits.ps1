@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   The alarm: scan the IIS log for any request to a canary token, or to a token
   that is not a station.

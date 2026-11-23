@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Prove the IIS brix-edge site is serving every station, and nothing else.
 

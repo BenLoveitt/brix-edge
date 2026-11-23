@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   brix-edge on IIS: serve each screen's released drawing from a folder you
   control, with nothing from Brix running on your server.

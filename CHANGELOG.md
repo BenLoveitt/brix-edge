@@ -18,6 +18,8 @@ A security review as an attacker on the customer network. SECURITY.md lists each
 - A drawing copied in with an older modification time (robocopy, `rsync -t`) got `304` from a client that sends only `If-Modified-Since`. `Last-Modified` is now the later of the modification time and the change time.
 - Many screens that asked at the same moment after a change each read the whole file to hash it. Now they share one read.
 - IIS serves every `.pdf` in a station's folder by name, not only `released.pdf`. The installer now warns, and `Test-BrixEdge.ps1` fails with status `exposed`, when a station's folder has another PDF. The README says so.
+- On Windows, the Node server refused every station as "outside the root" when the root path had a short (8.3) name or a different letter case than the folder. It now compares the same kind of real path on both sides.
+- Windows PowerShell 5.1 could not parse the IIS scripts: they had no byte-order mark, so it read the em dashes in them as quote marks. The scripts are now saved as UTF-8 with a byte-order mark. CI runs the IIS tests on Windows PowerShell 5.1.
 - The `web.config` comment said `maxAllowedContentLength` limits the drawing size. It limits the request body only. The comment is now correct.
 
 ### Added
