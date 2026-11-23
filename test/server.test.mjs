@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { writeFileSync, utimesSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { makeRoot, configFor, boot, pdfBytes } from "./helpers.mjs";
+import { stationLabel } from "../src/metrics.mjs";
 
 async function withServer(fn, extraEnv = {}) {
   const { root, map } = makeRoot();
@@ -123,11 +124,12 @@ test("/healthz and /metrics say what a reviewer needs and nothing more", async (
     await fetch(`${base}/drawings/scr_nope`);
     const m = await (await fetch(`${base}/metrics`)).text();
     assert.match(m, /brix_edge_up 1/);
-    assert.match(m, /brix_edge_drawings_served_total\{token="scr_a"\} 1/);
+    assert.match(m, new RegExp(`brix_edge_drawings_served_total\\{station="${stationLabel("scr_a")}"\\} 1`));
     assert.match(m, /brix_edge_unknown_token_total 1/);
     assert.match(m, /brix_edge_canary_requests_total 0/);
-    assert.match(m, /brix_edge_last_served_timestamp_seconds\{token="scr_a"\} \d+/);
+    assert.match(m, new RegExp(`brix_edge_last_served_timestamp_seconds\\{station="${stationLabel("scr_a")}"\\} \\d+`));
     assert.ok(!m.includes("released.pdf"), "no file names in metrics");
+    assert.ok(!m.includes("scr_a"), "no token in metrics: a list of valid tokens is what a prober needs");
   });
 });
 

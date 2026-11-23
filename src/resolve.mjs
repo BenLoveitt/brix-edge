@@ -17,17 +17,65 @@
  *      floor (the drawing was pulled), reported as such rather than as an
  *      error, so the screen shows a card and the log says why.
  */
-import { promises as fs, realpathSync } from "node:fs";
+import { promises as fs, realpathSync, constants as C } from "node:fs";
 import { join, resolve, sep, extname, basename } from "node:path";
 import { TOKEN_SHAPE } from "./config.mjs";
+
+/** Is the already-resolved `real` path inside `root`? */
+function realInside(root, real) {
+  const rootReal = realpathSync(root);
+  return real === rootReal || real.startsWith(rootReal + sep);
+}
 
 /** Is `candidate` inside `root` once symlinks are resolved? */
 async function insideRoot(root, candidate) {
   let real;
   try { real = await fs.realpath(candidate); }
   catch { return false; }
-  const rootReal = realpathSync(root);
-  return real === rootReal || real.startsWith(rootReal + sep);
+  return realInside(root, real);
+}
+
+// O_NOFOLLOW and O_NONBLOCK do not exist on Windows; there they are 0.
+const OPEN_FLAGS = C.O_RDONLY | (C.O_NOFOLLOW ?? 0) | (C.O_NONBLOCK ?? 0);
+
+/**
+ * Open the file `resolveToken` chose, and prove that the OPEN file is the one
+ * that was checked. Between the check and the open, someone with write access
+ * to the share could swap the file, or a folder above it, for a symlink that
+ * leads out of the root. So: open the real path without following a final
+ * symlink, then resolve the path again and require the same device and inode
+ * as the open descriptor. Anything else is refused as `outside`. The caller
+ * hashes and streams from this one descriptor, so the ETag always describes
+ * the bytes that are sent, and the body is exactly `size` bytes even if the
+ * file grows while it is sent.
+ *
+ * @returns {Promise<
+ *   | { kind: "open"; fh: FileHandle; size: number; mtimeMs: number; ctimeMs: number; dev: number; ino: number; name: string }
+ *   | { kind: "outside" } | { kind: "nothing-released" } | { kind: "too-large"; size: number }
+ * >}
+ */
+export async function openDrawing(cfg, file) {
+  let real;
+  try { real = await fs.realpath(file.path); } catch { return { kind: "nothing-released" }; }
+  if (!realInside(cfg.root, real)) return { kind: "outside" };
+  let fh;
+  try { fh = await fs.open(real, OPEN_FLAGS); }
+  catch (e) { return e?.code === "ELOOP" ? { kind: "outside" } : { kind: "nothing-released" }; }
+  try {
+    const st = await fh.stat();
+    if (!st.isFile()) { await fh.close(); return { kind: "nothing-released" }; }
+    let again, st2;
+    try { again = await fs.realpath(real); st2 = await fs.stat(again); }
+    catch { await fh.close(); return { kind: "nothing-released" }; }
+    if (again !== real || !realInside(cfg.root, again) || st2.dev !== st.dev || st2.ino !== st.ino) {
+      await fh.close(); return { kind: "outside" };
+    }
+    if (st.size > cfg.maxBytes) { await fh.close(); return { kind: "too-large", size: st.size }; }
+    return { kind: "open", fh, size: st.size, mtimeMs: st.mtimeMs, ctimeMs: st.ctimeMs, dev: st.dev, ino: st.ino, name: basename(real) };
+  } catch (e) {
+    await fh.close().catch(() => {});
+    throw e;
+  }
 }
 
 /**
