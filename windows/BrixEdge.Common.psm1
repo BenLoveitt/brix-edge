@@ -290,4 +290,35 @@ function Test-BrixEdgeStation {
   return [pscustomobject]$out
 }
 
-Export-ModuleMember -Function Test-BrixEdgeToken, ConvertTo-SubnetMask, ConvertFrom-Cidr, Resolve-StationPath, Read-BrixEdgeStationMap, ConvertFrom-W3CLog, Find-BrixEdgeAlarms, Invoke-BrixEdgeProbe, Test-BrixEdgeStation
+<#
+.SYNOPSIS
+  Every PDF that IIS would serve BY NAME from a station's virtual directory,
+  other than the one drawing the station is meant to serve.
+.DESCRIPTION
+  IIS serves the default document for /drawings/<id>/, and it ALSO serves any
+  other .pdf under that folder to a client who asks for it by name:
+  /drawings/<id>/older-rev.pdf, /drawings/<id>/archive/released.pdf. The Node
+  server never does; IIS has no setting that stops it without the URL Rewrite
+  module. A station mapped to a FILE is worse: its virtual directory is the
+  file's parent folder, so every PDF in that folder and below is reachable.
+  This lists them, so the installer can warn and Test-BrixEdge.ps1 can fail.
+  Paths are relative to the folder. Empty means only the drawing is reachable.
+#>
+function Find-BrixEdgeExposedFiles {
+  param(
+    [Parameter(Mandatory)][string] $Folder,
+    [Parameter(Mandatory)][string] $DefaultDocument
+  )
+  $out = New-Object System.Collections.Generic.List[string]
+  if (-not (Test-Path -LiteralPath $Folder -PathType Container)) { return $out.ToArray() }
+  $full = [IO.Path]::GetFullPath($Folder).TrimEnd($script:Sep)
+  foreach ($f in @(Get-ChildItem -LiteralPath $full -Recurse -File -Force -ErrorAction SilentlyContinue)) {
+    if ($f.Extension -ine ".pdf") { continue }
+    $rel = $f.FullName.Substring($full.Length + 1)
+    if ($rel -ieq $DefaultDocument) { continue }
+    $out.Add($rel)
+  }
+  return ($out.ToArray() | Sort-Object)
+}
+
+Export-ModuleMember -Function Test-BrixEdgeToken, ConvertTo-SubnetMask, ConvertFrom-Cidr, Resolve-StationPath, Read-BrixEdgeStationMap, ConvertFrom-W3CLog, Find-BrixEdgeAlarms, Invoke-BrixEdgeProbe, Test-BrixEdgeStation, Find-BrixEdgeExposedFiles

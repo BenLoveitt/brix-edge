@@ -188,6 +188,32 @@ It "ignores /healthz, /metrics and anything that is not a drawing request" {
   Expect (Find-BrixEdgeAlarms -Records $recs -KnownTokens @("scr_a") -CanaryTokens @()).Count 0
 }
 
+Write-Host "`nWhat IIS would serve by name, besides the drawing"
+$exp = Join-Path ([IO.Path]::GetTempPath()) ("brix-edge-exposed-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+$null = New-Item -ItemType Directory -Force -Path (Join-Path $exp "station"), (Join-Path $exp "station$($sep)archive"), (Join-Path $exp "clean")
+foreach ($f in @("station$($sep)released.pdf", "station$($sep)older-rev.PDF", "station$($sep)archive$($sep)released.pdf", "station$($sep)notes.txt", "clean$($sep)released.pdf")) {
+  Set-Content -LiteralPath (Join-Path $exp $f) -Value "%PDF-1.4"
+}
+It "lists every other PDF in the folder and below, and not the drawing or a non-PDF" {
+  $found = @(Find-BrixEdgeExposedFiles -Folder (Join-Path $exp "station") -DefaultDocument "released.pdf")
+  Expect $found.Count 2
+  Expect ($found -contains "older-rev.PDF") $true
+  Expect ($found -contains "archive$($sep)released.pdf") $true
+}
+It "a folder that holds only released.pdf exposes nothing" {
+  Expect @(Find-BrixEdgeExposedFiles -Folder (Join-Path $exp "clean") -DefaultDocument "released.pdf").Count 0
+}
+It "a station mapped to a FILE exposes the rest of its parent folder, subfolders included" {
+  # stations.json: "scr_x": "station/older-rev.PDF" -> the virtual directory is station/
+  $found = @(Find-BrixEdgeExposedFiles -Folder (Join-Path $exp "station") -DefaultDocument "older-rev.PDF")
+  Expect $found.Count 2
+  Expect ($found -contains "released.pdf") $true
+}
+It "a folder that does not exist exposes nothing" {
+  Expect @(Find-BrixEdgeExposedFiles -Folder (Join-Path $exp "missing") -DefaultDocument "released.pdf").Count 0
+}
+Remove-Item -LiteralPath $exp -Recurse -Force -ErrorAction SilentlyContinue
+
 Write-Host "`nThe HTTP probe, against a real server"
 # Test-BrixEdge.ps1's probe is the same code on IIS and here. IIS's own
 # default-document/ETag/304 behaviour still needs a Windows host, but the
@@ -199,7 +225,7 @@ if (-not $node) {
 } else {
   $probeRoot = Join-Path ([IO.Path]::GetTempPath()) ("brix-edge-probe-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
   $null = New-Item -ItemType Directory -Force -Path (Join-Path $probeRoot "parts$($sep)44-1187"), (Join-Path $probeRoot "parts$($sep)44-1200")
-  # A real, minimal PDF: the server sniffs %PDF before it serves anything.
+  # A real, minimal PDF, so the probe sees what a screen sees.
   $pdf = "%PDF-1.4`n1 0 obj`n<< /Type /Catalog /Pages 2 0 R >>`nendobj`n2 0 obj`n<< /Type /Pages /Kids [3 0 R] /Count 1 >>`nendobj`n3 0 obj`n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>`nendobj`ntrailer`n<< /Size 4 /Root 1 0 R >>`n%%EOF`n"
   [IO.File]::WriteAllText((Join-Path $probeRoot "parts$($sep)44-1187$($sep)released.pdf"), $pdf)
   $probeStations = Join-Path $probeRoot "stations.json"

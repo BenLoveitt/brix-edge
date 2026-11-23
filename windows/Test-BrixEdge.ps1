@@ -61,6 +61,15 @@ foreach ($t in $tokens) {
     $rel = Get-ChildItem -LiteralPath $vd.physicalPath -Filter *.pdf -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if ($rel) { $file = $rel.Name }
   }
+  # IIS serves any .pdf under the virtual directory by name, not only the
+  # drawing. Old revisions or other stations' drawings there are reachable.
+  $target = [string]$raw.$t
+  $defaultDoc = if ($target.ToLower().EndsWith(".pdf")) { Split-Path $target -Leaf } else { "released.pdf" }
+  $exposed = @(Find-BrixEdgeExposedFiles -Folder $vd.physicalPath -DefaultDocument $defaultDoc)
+  if ($exposed.Count -gt 0 -and $p.status -eq "ok") {
+    $p.status = "exposed"
+    $p.note = "$($exposed.Count) other PDF(s) are reachable by name here, e.g. $(($exposed | Select-Object -First 3) -join ', '). Move them out of this folder."
+  }
   if ($p.status -eq "nothing-released") { $missing = $true }
   elseif ($p.status -ne "ok") { $broken = $true }
   $rows.Add([pscustomobject][ordered]@{ token = $t; status = $p.status; file = $file; bytes = $p.bytes; modified = $p.modified; etag = $p.etag; note = $p.note })

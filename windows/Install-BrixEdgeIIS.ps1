@@ -113,6 +113,11 @@ foreach ($token in $map.Keys) {
     Write-Warning "$token -> $physical does not exist yet (nothing released). The virtual directory is created anyway; it serves once the folder appears."
     $null = New-Item -ItemType Directory -Force -Path $physical
   }
+  $defaultDoc = if ($isFile) { Split-Path $target -Leaf } else { "released.pdf" }
+  $exposed = @(Find-BrixEdgeExposedFiles -Folder $physical -DefaultDocument $defaultDoc)
+  if ($exposed.Count -gt 0) {
+    Write-Warning "$token -> $physical : IIS also serves $($exposed.Count) other PDF(s) in this folder by name, e.g. $(($exposed | Select-Object -First 3) -join ', '). Keep only the drawing in a station folder; map stations to folders, not files."
+  }
   if ($existing.ContainsKey($token)) {
     if ($existing[$token] -ne $physical) {
       if ($PSCmdlet.ShouldProcess("$token", "repoint to $physical")) {
