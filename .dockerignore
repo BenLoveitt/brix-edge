@@ -1,3 +1,4 @@
-test/
-*.md
-.git
+# Only what the image needs. Everything else stays out of the build context.
+*
+!package.json
+!src/
