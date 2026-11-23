@@ -1,0 +1,81 @@
+# Runs on every push and pull request, in public. Every security claim in
+# SECURITY.md points at a step here.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: node --test (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        node: [20, 22, 24]
+        include:
+          - os: windows-latest
+            node: 22
+          - os: macos-latest
+            node: 22
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: No dependencies
+        shell: bash
+        run: node -e 'const p=require("./package.json");const n=Object.keys({...p.dependencies,...p.devDependencies,...p.optionalDependencies,...p.peerDependencies}).length;if(n){console.error(n+" dependencies");process.exit(1)}console.log("0 dependencies")'
+      - run: node --test
+
+  powershell:
+    name: IIS kit unit tests (${{ matrix.shell }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: pwsh
+          - os: windows-latest
+            shell: pwsh
+          - os: windows-latest
+            shell: powershell # Windows PowerShell 5.1, which the installer runs under
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: ${{ matrix.shell }} -NoProfile -File windows/Test-BrixEdge.Common.ps1
+        shell: bash
+
+  image:
+    name: image — egress proof and reproducible build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Egress proof (--network none, read-only root, no capabilities)
+        run: scripts/egress-proof.sh
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Two clean builds give the same digest
+        run: |
+          a="$(scripts/reproduce.sh)"
+          b="$(scripts/reproduce.sh)"
+          echo "build 1: $a"; echo "build 2: $b"
+          test "$a" = "$b"
+          echo "### Image digest for $(git rev-parse --short HEAD): \`$a\`" >> "$GITHUB_STEP_SUMMARY"

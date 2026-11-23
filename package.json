@@ -1,6 +1,6 @@
 {
   "name": "brix-edge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The on-premises drawing server for Brix sealed screens. Reads one folder you run, serves one document per screen token, opens no outbound connection.",
   "type": "module",
   "license": "MIT",
