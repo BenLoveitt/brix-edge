@@ -21,7 +21,7 @@ scripts/reproduce.sh                          # needs Docker with buildx
 
 | Check | What it shows |
 |---|---|
-| `test/no-egress.test.mjs` | `src/` contains no outbound network primitive: no `fetch`, no HTTP client, no `node:net`, `node:tls`, `node:dns`, `node:dgram`, `node:child_process` and no dynamic `import()`. The only network module is `node:http`, and only `createServer` from it. |
+| `test/no-egress.test.mjs` | Every module `src/` loads, in any import form, is on a closed allowlist (`node:crypto`, `node:fs`, `node:http`, `node:path` and the four source files). `require`, `process.binding`, `eval`, workers and computed global lookups fail the test. To add a module, a change must edit the allowlist in the same diff. Also, `src/` contains no outbound network primitive: no `fetch`, no HTTP client, no `node:net`, `node:tls`, `node:dns`, `node:dgram`, `node:child_process` and no dynamic `import()`. The only network module is `node:http`, and only `createServer` from it. |
 | `scripts/egress-proof.sh` (CI job `image`) | The image runs with `--network none`, `--read-only`, `--cap-drop ALL` and `no-new-privileges`. The only interface is loopback. The server still serves a drawing. A request from inside the container to an outside address fails. No socket has a remote address other than loopback. |
 
 ### The server serves only the one drawing of a known station

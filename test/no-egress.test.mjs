@@ -37,6 +37,42 @@ test("src/ contains no outbound network primitive", () => {
   assert.deepEqual(offenders, []);
 });
 
+// CLOSED ALLOWLIST. A denylist misses spellings (`from "net"` without the
+// node: prefix, `import "net"`, require). So every module specifier in src/,
+// in any form, must be on this list or the test fails. Adding a module means
+// editing this list, in public, in the same diff.
+const ALLOWED_MODULES = new Set([
+  "node:crypto", "node:fs", "node:http", "node:path",
+  "./config.mjs", "./metrics.mjs", "./resolve.mjs", "./server.mjs"
+]);
+const SPECIFIER = /(?:\bfrom\s*|\bimport\s*)["']([^"']+)["']/g;
+const LOADERS = [
+  /\brequire\s*\(/, /\bcreateRequire\b/, /\bprocess\s*\.\s*binding\b/,
+  /\bprocess\s*\.\s*dlopen\b/, /\bprocess\s*\[/, /\bglobalThis\s*\[/,
+  /\bWorker\b/, /\beval\s*\(/, /\bnew\s+Function\b/, /\bmodule\.constructor\b/
+];
+
+test("every module src/ loads is on a closed allowlist, in any import form", () => {
+  const offenders = [];
+  for (const f of readdirSync(src)) {
+    const text = readFileSync(join(src, f), "utf8");
+    for (const m of text.matchAll(SPECIFIER)) if (!ALLOWED_MODULES.has(m[1])) offenders.push(`${f}: imports ${m[1]}`);
+    for (const re of LOADERS) if (re.test(text)) offenders.push(`${f}: ${re}`);
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test("the allowlist check catches the spellings a denylist misses", () => {
+  const bad = [
+    'import net from "net";', "import 'node:net';", 'import { connect } from "tls"',
+    'const n = require("net")', 'process.binding("tcp_wrap")', 'globalThis["fe"+"tch"]("x")'
+  ];
+  for (const line of bad) {
+    const caught = [...line.matchAll(SPECIFIER)].some((m) => !ALLOWED_MODULES.has(m[1])) || LOADERS.some((re) => re.test(line));
+    assert.ok(caught, `not caught: ${line}`);
+  }
+});
+
 test("the only network module imported is the inbound server (node:http createServer)", () => {
   const imports = new Set();
   for (const f of readdirSync(src)) {
