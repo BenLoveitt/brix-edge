@@ -14,6 +14,10 @@
 
 $script:Sep = [IO.Path]::DirectorySeparatorChar
 
+# Windows PowerShell 5.1 does not load System.Net.Http by itself, and without
+# it every probe failed as "unreachable" on the IIS host. PowerShell 7 has it.
+Add-Type -AssemblyName System.Net.Http
+
 <#
 .SYNOPSIS
   Is this a valid screen token (the id Brix stores, which is the only thing
