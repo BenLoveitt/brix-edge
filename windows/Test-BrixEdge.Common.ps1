@@ -160,7 +160,8 @@ It "a canary hit is an alarm whatever the status — a 200 would be worse, not q
     '#Fields: date time c-ip cs-uri-stem sc-status',
     '2026-09-08 10:00:00 10.0.0.9 /drawings/scr_canary/ 200'
   )
-  $hits = Find-BrixEdgeAlarms -Records $recs -KnownTokens @("scr_canary") -CanaryTokens @("scr_canary")
+  # @(): Windows PowerShell 5.1 gives a single PSCustomObject no .Count
+  $hits = @(Find-BrixEdgeAlarms -Records $recs -KnownTokens @("scr_canary") -CanaryTokens @("scr_canary"))
   Expect $hits.Count 1
   Expect $hits[0].kind "CANARY"
 }

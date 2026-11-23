@@ -130,7 +130,10 @@ test("check-then-open race: a drawing swapped for a FIFO is not opened, and noth
   assert.equal(o.kind, "nothing-released");
 });
 
-test("the body is exactly the bytes the ETag describes: hashed and sent from one open descriptor", async () => {
+test("the body is exactly the bytes the ETag describes: hashed and sent from one open descriptor", async (t) => {
+  // Windows refuses to rename over a file that is open, so there the swap
+  // cannot happen at all.
+  if (process.platform === "win32") { t.skip("Windows does not replace an open file"); return; }
   const { root, map } = makeRoot();
   const cfg = configFor(root, map);
   const r = await resolveToken(cfg, "scr_a");
